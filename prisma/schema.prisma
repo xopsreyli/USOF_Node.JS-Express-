@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model categories {
+  id              Int             @id @default(autoincrement())
+  title           String          @db.VarChar(32)
+  description     String
+  number_of_posts Int             @default(0)
+  post_category   post_category[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model comment_likes {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  publish_date DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  entity_id    Int?
+  type         String    @db.VarChar(8)
+  comments     comments? @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entity_id], map: "comment_likes_entity_id_index")
+  @@index([user_id], map: "comment_likes_user_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model comments {
+  id            Int             @id @default(autoincrement())
+  user_id       Int
+  post_id       Int
+  publish_date  DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  content       String
+  status        String          @default("active") @db.VarChar(16)
+  comment_likes comment_likes[]
+  posts         posts           @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, post_id], map: "comments_user_id_post_id_index")
+}
+
+model favorites {
+  user_id Int
+  post_id Int
+  posts   posts @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users   users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, post_id], map: "favorites_user_id_post_id_unique_index")
+}
+
+model pgmigrations {
+  id     Int      @id @default(autoincrement())
+  name   String   @db.VarChar(255)
+  run_on DateTime @db.Timestamp(6)
+}
+
+model post_category {
+  post_id     Int
+  category_id Int
+  categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  posts       posts      @relation(fields: [post_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([post_id, category_id], map: "post_category_post_id_category_id_unique_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model post_likes {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  publish_date DateTime @default(dbgenerated("CURRENT_DATE")) @db.Date
+  entity_id    Int?
+  type         String   @db.VarChar(8)
+  posts        posts?   @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([entity_id], map: "post_likes_entity_id_index")
+  @@index([user_id], map: "post_likes_user_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model posts {
+  id            Int             @id @default(autoincrement())
+  user_id       Int
+  title         String          @db.VarChar(255)
+  publish_date  DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  status        String          @default("active") @db.VarChar(16)
+  content       String
+  rating        Int             @default(0)
+  comments      comments[]
+  favorites     favorites[]
+  post_category post_category[]
+  post_likes    post_likes[]
+  users         users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "posts_user_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id              Int             @id @default(autoincrement())
+  login           String          @unique @db.VarChar(32)
+  password        String          @db.VarChar(64)
+  full_name       String?         @db.VarChar(255)
+  email           String          @unique @db.VarChar(255)
+  profile_picture String?         @db.VarChar(255)
+  rating          Int             @default(0)
+  role            String          @default("user") @db.VarChar(32)
+  theme           String          @default("dark") @db.VarChar(16)
+  color_schema    String          @default("green") @db.VarChar(16)
+  refresh_token   String?
+  is_confirmed    Boolean         @default(false)
+  comment_likes   comment_likes[]
+  comments        comments[]
+  favorites       favorites[]
+  post_likes      post_likes[]
+  posts           posts[]
+}
+
+model session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+}
